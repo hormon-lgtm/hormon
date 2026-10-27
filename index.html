@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>المطعم الفاخر | القائمة والطلب الذكي</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Tajawal for clean Apple-like Arabic typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Tajawal', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                    },
+                    colors: {
+                        apple: {
+                            light: '#F5F5F7',
+                            dark: '#000000',
+                            cardDark: '#1D1D1F',
+                            cardLight: '#FFFFFF',
+                            blue: '#0071E3',
+                            gray: '#86868B',
+                            borderDark: 'rgba(255, 255, 255, 0.12)',
+                            borderLight: 'rgba(0, 0, 0, 0.08)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            scroll-behavior: smooth;
+        }
+        body {
+            background-color: #000000;
+            color: #F5F5F7;
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow-x: hidden;
+        }
+        body.light-mode {
+            background-color: #F5F5F7;
+            color: #1D1D1F;
+        }
+        /* Apple Glassmorphism */
+        .apple-glass {
+            background: rgba(29, 29, 31, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        body.light-mode .apple-glass {
+            background: rgba(255, 255, 255, 0.80);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+        }
+        .apple-card {
+            background: #1D1D1F;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body.light-mode .apple-card {
+            background: #FFFFFF;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+        }
+        .apple-card:hover {
+            transform: translateY(-4px) scale(1.005);
+            border-color: rgba(255, 255, 255, 0.22);
+        }
+        body.light-mode .apple-card:hover {
+            border-color: rgba(0, 0, 0, 0.15);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
+        }
+        .pill-btn {
+            border-radius: 980px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .pill-btn:active {
+            transform: scale(0.95);
+        }
+        /* Hide scrollbars for category pills */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.55; transform: scale(1.1); }
+        }
+        .status-dot {
+            animation: pulse-slow 2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-apple-blue selection:text-white">
+
+    <!-- Top Floating Navbar (Apple Glass) -->
+    <header class="fixed top-0 left-0 right-0 z-40 px-4 py-3">
+        <div class="max-w-6xl mx-auto apple-glass rounded-full px-5 py-2.5 flex items-center justify-between shadow-lg">
+            <!-- Brand & Status -->
+            <div class="flex items-center gap-3">
+                <a href="#" class="text-xl font-extrabold tracking-tight flex items-center gap-2">
+                    <img id="navStoreLogo" class="w-9 h-9 rounded-full object-cover border border-white/15 hidden" alt="شعار المطعم">
+                    <span id="navStoreName">المطعم</span>
+                </a>
+                <!-- Live Restaurant Status Pill -->
+                <div id="statusBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 status-dot"></span>
+                    <span id="statusText">نستقبل الطلبات الآن</span>
+                </div>
+            </div>
+
+            <!-- Actions: Cache Refresh, Theme Toggle, Cart Button -->
+            <div class="flex items-center gap-2">
+                <button id="forceRefreshBtn" title="تحديث القائمة" class="p-2 rounded-full hover:bg-white/10 transition text-apple-gray hover:text-white">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button id="themeToggleBtn" title="تغيير المظهر" class="p-2 rounded-full hover:bg-white/10 transition text-apple-gray hover:text-white">
+                    <i data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <button id="openCartBtn" class="relative pill-btn bg-apple-blue hover:bg-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center gap-2 shadow-md">
+                    <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">سلتي</span>
+                    <span id="cartCountBadge" class="bg-white text-black px-1.5 py-0.2 rounded-full text-xs font-extrabold">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-[88vh] flex items-center justify-center px-4 pt-24 pb-12 overflow-hidden">
+        <!-- Subtle radial glow behind hero image -->
+        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-[450px] h-[450px] bg-apple-blue/15 rounded-full blur-[130px]"></div>
+        </div>
+
+        <div class="max-w-5xl mx-auto text-center z-10 flex flex-col items-center">
+            <span id="heroSubtitle" class="text-xs sm:text-sm uppercase tracking-widest text-apple-gray font-bold mb-3">تجربة مذاق استثنائية</span>
+            <h1 id="heroTitle" class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight mb-6 max-w-3xl">
+                الفخامة في كل تفصيلة، والبساطة في كل طلب.
+            </h1>
+            
+            <!-- Centerpiece Dish Image -->
+            <div class="relative my-6 group">
+                <img id="heroImage" src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=85" alt="الطبق الرئيسي" class="w-72 h-72 sm:w-96 sm:h-96 object-cover rounded-[36px] shadow-2xl border border-white/10 transition duration-700 group-hover:scale-105">
+                <div id="heroPriceTag" class="mt-4 inline-flex items-center gap-2 apple-glass px-4 py-1.5 rounded-full text-xs text-apple-gray">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span id="heroTagText">محضر طازجاً يومياً بأعلى معايير الجودة</span>
+                </div>
+            </div>
+
+            <!-- Single Floating CTA Button -->
+            <a href="#menuSection" class="mt-4 pill-btn bg-white text-black hover:bg-neutral-200 px-8 py-4 text-base sm:text-lg font-extrabold shadow-xl flex items-center gap-3">
+                <span>استكشف القائمة الآن</span>
+                <i data-lucide="arrow-down" class="w-5 h-5"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- Closed Banner Alert (Hidden when Open) -->
+    <div id="closedAlertBanner" class="hidden max-w-6xl mx-auto px-4 mb-6">
+        <div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl p-4 flex items-center justify-center gap-3 text-sm font-bold text-center">
+            <i data-lucide="clock" class="w-5 h-5 shrink-0"></i>
+            <span>المطعم مغلق حالياً ولا يستقبل طلبات جديدة. يمكنك تصفح القائمة فقط ريثما نعود!</span>
+        </div>
+    </div>
+
+    <!-- Bento Grid Menu Section -->
+    <main id="menuSection" class="max-w-6xl mx-auto w-full px-4 py-12 flex-grow">
+        <!-- Section Header & Category Filter Pills -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            <div>
+                <h2 class="text-3xl sm:text-4xl font-black tracking-tight">قائمة الأطباق</h2>
+                <p class="text-apple-gray text-sm mt-1">اختر أطباقك المفضلة بضغطة واحدة</p>
+            </div>
+            <!-- Categories Horizontal Scroll -->
+            <div id="categoriesContainer" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Loading Skeleton -->
+        <div id="menuLoader" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="apple-card p-4 h-80 animate-pulse flex flex-col justify-between">
+                <div class="w-full h-44 bg-white/5 rounded-2xl"></div>
+                <div class="h-5 bg-white/10 rounded w-2/3"></div>
+                <div class="h-4 bg-white/5 rounded w-full"></div>
+                <div class="h-8 bg-white/10 rounded-full w-1/3"></div>
+            </div>
+            <div class="apple-card p-4 h-80 animate-pulse flex flex-col justify-between">
+                <div class="w-full h-44 bg-white/5 rounded-2xl"></div>
+                <div class="h-5 bg-white/10 rounded w-2/3"></div>
+                <div class="h-4 bg-white/5 rounded w-full"></div>
+                <div class="h-8 bg-white/10 rounded-full w-1/3"></div>
+            </div>
+            <div class="apple-card p-4 h-80 animate-pulse flex flex-col justify-between">
+                <div class="w-full h-44 bg-white/5 rounded-2xl"></div>
+                <div class="h-5 bg-white/10 rounded w-2/3"></div>
+                <div class="h-4 bg-white/5 rounded w-full"></div>
+                <div class="h-8 bg-white/10 rounded-full w-1/3"></div>
+            </div>
+        </div>
+
+        <!-- Bento Grid Items -->
+        <div id="menuGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Populated dynamically -->
+        </div>
+    </main>
+
+    <!-- Floating Bottom Cart Bar (Appears when items in cart) -->
+    <div id="floatingCartBar" class="fixed bottom-5 left-0 right-0 z-30 px-4 pointer-events-none hidden">
+        <div class="max-w-xl mx-auto apple-glass rounded-full p-2.5 pl-3 pr-5 shadow-2xl flex items-center justify-between pointer-events-auto border border-white/20">
+            <div class="flex items-center gap-3">
+                <span id="floatingCartCount" class="w-8 h-8 rounded-full bg-apple-blue text-white font-black text-sm flex items-center justify-center">0</span>
+                <div>
+                    <p class="text-xs text-apple-gray">المجموع المبدئي</p>
+                    <p class="text-base font-extrabold"><span id="floatingCartTotal">0</span> د.ج</p>
+                </div>
+            </div>
+            <button id="openCheckoutFromBar" class="pill-btn bg-white text-black hover:bg-neutral-200 px-6 py-2.5 text-sm font-black flex items-center gap-2">
+                <span>إتمام الطلب</span>
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Social Links & Footer -->
+    <footer class="border-t border-white/10 mt-16 py-10 px-4 text-center text-sm text-apple-gray">
+        <div class="max-w-6xl mx-auto flex flex-col items-center gap-5">
+            <!-- Dynamic Social & Custom Links -->
+            <div id="socialLinksContainer" class="flex flex-wrap items-center justify-center gap-3">
+                <!-- Populated from store_config -->
+            </div>
+            <img id="footerStoreLogo" alt="شعار المطعم" class="hidden w-16 h-16 rounded-full object-cover border border-white/15 shadow-lg">
+            <p class="text-xs">
+                جميع الحقوق محفوظة &copy; <span id="footerYear"></span> <span id="footerStoreName" class="font-bold">المطعم</span> — صُمم ببساطة وفخامة.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Slide-over Checkout Modal (Apple Sheet Style) -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
+        <div class="apple-card w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-[32px] sm:rounded-[32px] p-6 sm:p-8 border border-white/15 shadow-2xl relative">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-white/10">
+                <div>
+                    <h3 class="text-2xl font-black">تأكيد الطلب</h3>
+                    <p class="text-xs text-apple-gray mt-0.5">خطوة واحدة تفصلك عن أكلتك المفضلة</p>
+                </div>
+                <button id="closeModalBtn" class="p-2 rounded-full bg-white/5 hover:bg-white/15 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Cart Items List -->
+            <div id="cartItemsList" class="py-4 space-y-3 max-h-52 overflow-y-auto divide-y divide-white/5">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Empty Cart Message -->
+            <div id="emptyCartMsg" class="hidden py-10 text-center text-apple-gray">
+                <i data-lucide="shopping-bag" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                <p class="font-bold">سلة الطلبات فارغة حالياً</p>
+                <p class="text-xs mt-1">أضف بعض الأطباق الشهية من القائمة للبدء</p>
+            </div>
+
+            <!-- Order Form -->
+            <form id="checkoutForm" class="space-y-4 mt-4 pt-4 border-t border-white/10">
+                <!-- Daily Limit Warning Banner -->
+                <div id="dailyLimitBanner" class="hidden bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-2xl p-3 text-xs font-bold flex items-center gap-2">
+                    <i data-lucide="shield-alert" class="w-4 h-4 shrink-0"></i>
+                    <span id="dailyLimitText">لقد وصلت للحد الأقصى المسموح به (طلبين في اليوم).</span>
+                </div>
+
+                <!-- Customer Name -->
+                <div>
+                    <label class="block text-xs font-bold text-apple-gray mb-1.5">الاسم الكريم (اختياري)</label>
+                    <input type="text" id="customerName" placeholder="مثال: عبد الرحمن" class="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:border-apple-blue transition">
+                </div>
+
+                <!-- Algerian Phone Number Verification -->
+                <div>
+                    <label class="block text-xs font-bold text-apple-gray mb-1.5">رقم الهاتف الجزائري <span class="text-red-400">*</span></label>
+                    <div class="relative">
+                        <input type="tel" id="customerPhone" required placeholder="05XX XX XX XX / 06 / 07" dir="ltr" class="w-full text-left rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-mono focus:outline-none focus:border-apple-blue transition">
+                    </div>
+                    <p id="phoneErrorMsg" class="hidden text-red-400 text-xs mt-1 font-bold">يرجى إدخال رقم هاتف جزائري صحيح (10 أرقام يبدأ بـ 05، 06، أو 07 أو +213).</p>
+                </div>
+
+                <!-- Location & Delivery Method -->
+                <div class="space-y-3 pt-1">
+                    <label class="block text-xs font-bold text-apple-gray">تحديد الموقع والمنطقة <span class="text-red-400">*</span></label>
+                    
+                    <!-- GPS Automatic Button -->
+                    <button type="button" id="gpsBtn" class="w-full rounded-2xl bg-apple-blue/15 hover:bg-apple-blue/25 border border-apple-blue/40 text-apple-blue py-3 px-4 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition">
+                        <i data-lucide="map-pin" class="w-4 h-4"></i>
+                        <span id="gpsBtnText">تحديد موقعي الحالي التلقائي (GPS)</span>
+                    </button>
+                    <input type="hidden" id="gpsMapsLink" value="">
+
+                    <!-- Delivery Zone Selector (Populated by Admin Settings) -->
+                    <div>
+                        <select id="deliveryZoneSelect" class="w-full rounded-2xl bg-neutral-900 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:border-apple-blue transition">
+                            <option value="0" data-zone-name="توصيل عادي">اختر البلدية / الحي لحساب التوصيل...</option>
+                        </select>
+                    </div>
+
+                    <!-- Manual Address Fallback -->
+                    <div>
+                        <input type="text" id="manualAddress" placeholder="أو اكتب عنوانك بالتفصيل (الحي، الشارع، معلم قريب...)" class="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:border-apple-blue transition">
+                    </div>
+                </div>
+
+                <!-- Financial Summary -->
+                <div class="rounded-2xl bg-white/5 p-4 space-y-2 text-sm border border-white/5">
+                    <div class="flex justify-between text-apple-gray">
+                        <span>مجموع الأطباق:</span>
+                        <span><strong id="summarySubtotal">0</strong> د.ج</span>
+                    </div>
+                    <div class="flex justify-between text-apple-gray">
+                        <span>رسوم التوصيل:</span>
+                        <span><strong id="summaryDelivery">0</strong> د.ج</span>
+                    </div>
+                    <div class="flex justify-between text-base font-black pt-2 border-t border-white/10">
+                        <span>المبلغ الإجمالي:</span>
+                        <span class="text-apple-blue"><strong id="summaryTotal">0</strong> د.ج</span>
+                    </div>
+                </div>
+
+                <!-- Dual Confirmation Submit Button (Firebase + WhatsApp) -->
+                <button type="submit" id="submitOrderBtn" class="w-full pill-btn bg-emerald-500 hover:bg-emerald-600 text-black font-black py-4 px-6 text-base shadow-lg flex items-center justify-center gap-2 transition">
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                    <span id="submitOrderBtnText">تأكيد وإرسال عبر واتساب</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden apple-glass px-5 py-3 rounded-full shadow-2xl text-xs sm:text-sm font-bold flex items-center gap-2 border border-white/20">
+        <span id="toastText">تمت الإضافة للسلة</span>
+    </div>
+
+    <!-- Firebase SDK v10 (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            addDoc, 
+            collection, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4fF-EidNl27yzIoACLhHxFb-bEn3JdMo",
+            authDomain: "hormon-95c55.firebaseapp.com",
+            projectId: "hormon-95c55",
+            storageBucket: "hormon-95c55.firebasestorage.app",
+            messagingSenderId: "849869247331",
+            appId: "1:849869247331:web:983a7babfce5c39a897956",
+            measurementId: "G-8HPKY5DF90"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        try { getAnalytics(app); } catch(e) {}
+        const db = getFirestore(app);
+
+        // ==========================================
+        // 1. SMART SAVING STRATEGY: CACHE & 1-READ
+        // ==========================================
+        const CACHE_KEY = "apple_resto_single_doc_v1";
+        const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 Hours Local Caching
+        const LOCAL_LIMIT_KEY = "apple_resto_daily_orders";
+
+        // Default fallback data if admin hasn't saved yet
+        const DEFAULT_STORE_DATA = {
+            storeName: "أبل جورميه | Apple Gourmet",
+            isOpen: true,
+            whatsapp: "213550000000",
+            heroTitle: "الفخامة في كل تفصيلة، والبساطة في كل طلب.",
+            heroSubtitle: "تجربة مذاق استثنائية",
+            heroTag: "محضر طازجاً يومياً بأعلى معايير الجودة",
+            heroImage: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=85",
+            storeLogo: "",
+            defaultDeliveryFee: 200,
+            deliveryZones: [
+                { name: "وسط المدينة", fee: 150 },
+                { name: "الأحياء القريبة", fee: 250 },
+                { name: "استلام من المطعم", fee: 0 }
+            ],
+            socialLinks: [
+                { platform: "instagram", label: "Instagram", url: "https://instagram.com" },
+                { platform: "facebook", label: "Facebook", url: "https://facebook.com" },
+                { platform: "tiktok", label: "TikTok", url: "https://tiktok.com" }
+            ],
+            menu: [
+                {
+                    id: "item_1",
+                    name: "برجر ترافل واغيو الفاخر",
+                    category: "برجر",
+                    price: 1250,
+                    ingredients: "لحم واغيو صافي، جبنة شيدر معتقة، صوص الترافل الأسود، خبز بريوش محمص",
+                    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=700&q=80",
+                    available: true
+                },
+                {
+                    id: "item_2",
+                    name: "بيتزا مارغريتا نابوليتانا",
+                    category: "بيتزا",
+                    price: 1100,
+                    ingredients: "عجينة مخمرة 48 ساعة، جبن موزاريلا بافالو، ريحان طازج، زيت زيتون بكر",
+                    image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=700&q=80",
+                    available: true
+                },
+                {
+                    id: "item_3",
+                    name: "تشيكن كرسبي سوبريم",
+                    category: "برجر",
+                    price: 850,
+                    ingredients: "صدر دجاج مقرمش متبل، سلطة كول سلو كريمية، مخلل، صوص سري",
+                    image: "https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=700&q=80",
+                    available: false
+                }
+            ]
+        };
+
+        let storeConfig = DEFAULT_STORE_DATA;
+        let cart = [];
+        let activeCategory = "الكل";
+
+        // Load Single Public Document (1 Read max per 2 hours)
+        async function loadStoreDocument(forceRefresh = false) {
+            try {
+                if (!forceRefresh) {
+                    const cachedRaw = localStorage.getItem(CACHE_KEY);
+                    if (cachedRaw) {
+                        const cached = JSON.parse(cachedRaw);
+                        if (Date.now() - cached.timestamp < CACHE_TTL_MS && cached.data) {
+                            storeConfig = { ...DEFAULT_STORE_DATA, ...cached.data };
+                            renderStoreUI();
+                            return;
+                        }
+                    }
+                }
+
+                // 1 Single Firestore Read for the entire website!
+                const docRef = doc(db, "public_data", "store_config");
+                const snap = await getDoc(docRef);
+
+                if (snap.exists()) {
+                    storeConfig = { ...DEFAULT_STORE_DATA, ...snap.data() };
+                } else {
+                    storeConfig = DEFAULT_STORE_DATA;
+                }
+
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    timestamp: Date.now(),
+                    data: storeConfig
+                }));
+
+                renderStoreUI();
+                if (forceRefresh) showToast("تم تحديث القائمة والحالة بنجاح");
+            } catch (err) {
+                console.error("Error loading config:", err);
+                renderStoreUI();
+            }
+        }
+
+        // ==========================================
+        // 2. RENDER APPLE UI & BENTO GRID
+        // ==========================================
+        function renderStoreUI() {
+            document.getElementById("navStoreName").textContent = storeConfig.storeName || "المطعم";
+            document.getElementById("footerStoreName").textContent = storeConfig.storeName || "المطعم";
+            document.getElementById("footerYear").textContent = new Date().getFullYear();
+            const navStoreLogo = document.getElementById("navStoreLogo");
+            const footerStoreLogo = document.getElementById("footerStoreLogo");
+            if (storeConfig.storeLogo) {
+                navStoreLogo.src = storeConfig.storeLogo;
+                footerStoreLogo.src = storeConfig.storeLogo;
+                navStoreLogo.classList.remove("hidden");
+                footerStoreLogo.classList.remove("hidden");
+            } else {
+                navStoreLogo.classList.add("hidden");
+                footerStoreLogo.classList.add("hidden");
+            }
+
+            // Hero Section
+            document.getElementById("heroTitle").textContent = storeConfig.heroTitle || DEFAULT_STORE_DATA.heroTitle;
+            document.getElementById("heroSubtitle").textContent = storeConfig.heroSubtitle || DEFAULT_STORE_DATA.heroSubtitle;
+            document.getElementById("heroTagText").textContent = storeConfig.heroTag || DEFAULT_STORE_DATA.heroTag;
+            if (storeConfig.heroImage) {
+                document.getElementById("heroImage").src = storeConfig.heroImage;
+            }
+
+            // Open / Closed Status Indicator
+            const statusBadge = document.getElementById("statusBadge");
+            const statusDot = document.getElementById("statusDot");
+            const statusText = document.getElementById("statusText");
+            const closedBanner = document.getElementById("closedAlertBanner");
+
+            if (storeConfig.isOpen) {
+                statusBadge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+                statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 status-dot";
+                statusText.textContent = "نستقبل الطلبات الآن";
+                closedBanner.classList.add("hidden");
+            } else {
+                statusBadge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30";
+                statusDot.className = "w-2 h-2 rounded-full bg-red-500";
+                statusText.textContent = "مغلق حالياً";
+                closedBanner.classList.remove("hidden");
+            }
+
+            // Delivery Zones Dropdown
+            const zoneSelect = document.getElementById("deliveryZoneSelect");
+            zoneSelect.innerHTML = "";
+            const zones = Array.isArray(storeConfig.deliveryZones) && storeConfig.deliveryZones.length > 0
+                ? storeConfig.deliveryZones
+                : [{ name: "توصيل عادي", fee: Number(storeConfig.defaultDeliveryFee || 0) }];
+
+            zones.forEach((z, idx) => {
+                const opt = document.createElement("option");
+                opt.value = z.fee;
+                opt.dataset.zoneName = z.name;
+                opt.textContent = `${z.name} (${z.fee} د.ج)`;
+                if (idx === 0) opt.selected = true;
+                zoneSelect.appendChild(opt);
+            });
+
+            renderCategories();
+            renderMenuGrid();
+            renderSocialLinks();
+            updateCartUI();
+        }
+
+        function renderCategories() {
+            const menu = Array.isArray(storeConfig.menu) ? storeConfig.menu : [];
+            const cats = ["الكل", ...new Set(menu.map(item => item.category || "عام"))];
+            const container = document.getElementById("categoriesContainer");
+            container.innerHTML = "";
+
+            cats.forEach(cat => {
+                const btn = document.createElement("button");
+                const isActive = activeCategory === cat;
+                btn.className = isActive
+                    ? "pill-btn px-5 py-2 text-xs sm:text-sm font-extrabold bg-white text-black shadow-md shrink-0"
+                    : "pill-btn px-5 py-2 text-xs sm:text-sm font-bold bg-white/5 hover:bg-white/10 text-apple-gray hover:text-white border border-white/10 shrink-0";
+                btn.textContent = cat;
+                btn.onclick = () => {
+                    activeCategory = cat;
+                    renderCategories();
+                    renderMenuGrid();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderMenuGrid() {
+            const loader = document.getElementById("menuLoader");
+            const grid = document.getElementById("menuGrid");
+            loader.classList.add("hidden");
+            grid.classList.remove("hidden");
+            grid.innerHTML = "";
+
+            const menu = Array.isArray(storeConfig.menu) ? storeConfig.menu : [];
+            const filtered = activeCategory === "الكل"
+                ? menu
+                : menu.filter(i => (i.category || "عام") === activeCategory);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-16 text-apple-gray font-bold">لا توجد أطباق في هذا التصنيف حالياً.</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const isAvailable = item.available !== false;
+                const canOrder = storeConfig.isOpen && isAvailable;
+
+                const card = document.createElement("div");
+                card.className = `apple-card p-4 flex flex-col justify-between relative overflow-hidden ${!isAvailable ? 'opacity-50 grayscale' : ''}`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="relative h-52 w-full mb-4 overflow-hidden rounded-[18px] bg-neutral-900">
+                            <img src="${item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'}" 
+                                 alt="${item.name}" 
+                                 loading="lazy"
+                                 class="w-full h-full object-cover transition duration-500 hover:scale-105">
+                            <span class="absolute top-3 right-3 apple-glass px-3 py-1 rounded-full text-[11px] font-bold">
+                                ${item.category || 'طبق'}
+                            </span>
+                            ${!isAvailable ? `
+                                <div class="absolute inset-0 bg-black/65 flex items-center justify-center">
+                                    <span class="bg-red-500 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-lg">نفذت الكمية حالياً</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <h3 class="text-lg font-extrabold tracking-tight mb-1">${item.name}</h3>
+                        <p class="text-xs text-apple-gray line-clamp-2 leading-relaxed mb-4">${item.ingredients || ''}</p>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-3 border-t border-white/10">
+                        <div>
+                            <span class="text-xl font-black">${Number(item.price).toLocaleString()}</span>
+                            <span class="text-xs text-apple-gray font-bold">د.ج</span>
+                        </div>
+                        <button 
+                            ${!canOrder ? 'disabled' : ''} 
+                            data-id="${item.id}"
+                            class="add-to-cart-btn w-10 h-10 rounded-full flex items-center justify-center transition ${canOrder ? 'bg-apple-blue hover:bg-blue-600 text-white shadow-lg cursor-pointer active:scale-90' : 'bg-white/10 text-apple-gray cursor-not-allowed'}">
+                            <i data-lucide="plus" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                `;
+
+                const addBtn = card.querySelector(".add-to-cart-btn");
+                if (canOrder) {
+                    addBtn.addEventListener("click", () => addToCart(item));
+                }
+
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function renderSocialLinks() {
+            const container = document.getElementById("socialLinksContainer");
+            container.innerHTML = "";
+            const links = Array.isArray(storeConfig.socialLinks) ? storeConfig.socialLinks : [];
+
+            links.forEach(link => {
+                if (!link.url) return;
+                const a = document.createElement("a");
+                a.href = link.url;
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+                a.className = "apple-glass px-4 py-2 rounded-full text-xs font-bold hover:border-white/40 transition flex items-center gap-2";
+                a.innerHTML = `<i data-lucide="external-link" class="w-3.5 h-3.5 text-apple-blue"></i><span>${link.label || link.platform}</span>`;
+                container.appendChild(a);
+            });
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 3. CART MANAGEMENT
+        // ==========================================
+        function addToCart(item) {
+            if (!storeConfig.isOpen) {
+                showToast("المطعم مغلق حالياً ولا يستقبل طلبات");
+                return;
+            }
+            const existing = cart.find(c => c.id === item.id);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                cart.push({ ...item, qty: 1 });
+            }
+            updateCartUI();
+            showToast(`أُضيف "${item.name}" إلى سلتك`);
+        }
+
+        function changeQty(id, delta) {
+            const idx = cart.findIndex(c => c.id === id);
+            if (idx === -1) return;
+            cart[idx].qty += delta;
+            if (cart[idx].qty <= 0) {
+                cart.splice(idx, 1);
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const totalCount = cart.reduce((acc, item) => acc + item.qty, 0);
+            const subtotal = cart.reduce((acc, item) => acc + (Number(item.price) * item.qty), 0);
+            const zoneSelect = document.getElementById("deliveryZoneSelect");
+            const deliveryFee = cart.length > 0 ? Number(zoneSelect.value || 0) : 0;
+            const grandTotal = subtotal + deliveryFee;
+
+            document.getElementById("cartCountBadge").textContent = totalCount;
+            document.getElementById("floatingCartCount").textContent = totalCount;
+            document.getElementById("floatingCartTotal").textContent = subtotal.toLocaleString();
+
+            const floatingBar = document.getElementById("floatingCartBar");
+            if (totalCount > 0) {
+                floatingBar.classList.remove("hidden");
+            } else {
+                floatingBar.classList.add("hidden");
+            }
+
+            // Render Modal Items
+            const listEl = document.getElementById("cartItemsList");
+            const emptyMsg = document.getElementById("emptyCartMsg");
+            const checkoutForm = document.getElementById("checkoutForm");
+
+            listEl.innerHTML = "";
+            if (cart.length === 0) {
+                emptyMsg.classList.remove("hidden");
+                checkoutForm.classList.add("hidden");
+            } else {
+                emptyMsg.classList.add("hidden");
+                checkoutForm.classList.remove("hidden");
+
+                cart.forEach(item => {
+                    const row = document.createElement("div");
+                    row.className = "pt-3 first:pt-0 flex items-center justify-between gap-3";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <img src="${item.image}" class="w-12 h-12 rounded-xl object-cover">
+                            <div>
+                                <h4 class="text-sm font-bold">${item.name}</h4>
+                                <p class="text-xs text-apple-gray">${Number(item.price).toLocaleString()} د.ج</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 bg-white/5 rounded-full px-2 py-1 border border-white/10">
+                            <button type="button" data-id="${item.id}" data-delta="-1" class="qty-btn w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center font-bold">-</button>
+                            <span class="text-xs font-extrabold px-1">${item.qty}</span>
+                            <button type="button" data-id="${item.id}" data-delta="1" class="qty-btn w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center font-bold">+</button>
+                        </div>
+                    `;
+                    listEl.appendChild(row);
+                });
+
+                listEl.querySelectorAll(".qty-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        changeQty(btn.dataset.id, Number(btn.dataset.delta));
+                    });
+                });
+            }
+
+            document.getElementById("summarySubtotal").textContent = subtotal.toLocaleString();
+            document.getElementById("summaryDelivery").textContent = deliveryFee.toLocaleString();
+            document.getElementById("summaryTotal").textContent = grandTotal.toLocaleString();
+
+            checkLocalDailyLimitUI();
+        }
+
+        document.getElementById("deliveryZoneSelect").addEventListener("change", updateCartUI);
+
+        // ==========================================
+        // 4. ALGERIAN VALIDATION, GPS & 2-ORDERS LIMIT
+        // ==========================================
+        function getTodayStr() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        // Normalize Algerian phone to standard 10 digits (05/06/07XXXXXXXX)
+        function normalizeAlgerianPhone(raw) {
+            let cleaned = raw.replace(/[\s\-\.]/g, "");
+            if (cleaned.startsWith("+213")) {
+                cleaned = "0" + cleaned.slice(4);
+            } else if (cleaned.startsWith("00213")) {
+                cleaned = "0" + cleaned.slice(5);
+            } else if (cleaned.startsWith("213") && cleaned.length === 12) {
+                cleaned = "0" + cleaned.slice(3);
+            }
+            const regex = /^0[567][0-9]{8}$/;
+            return regex.test(cleaned) ? cleaned : null;
+        }
+
+        // First Line of Defense (0 Reads): Check localStorage
+        function getLocalTodayOrderCount() {
+            try {
+                const raw = localStorage.getItem(LOCAL_LIMIT_KEY);
+                if (!raw) return 0;
+                const parsed = JSON.parse(raw);
+                if (parsed.date !== getTodayStr()) return 0;
+                return Number(parsed.count || 0);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function incrementLocalTodayOrderCount() {
+            const current = getLocalTodayOrderCount();
+            localStorage.setItem(LOCAL_LIMIT_KEY, JSON.stringify({
+                date: getTodayStr(),
+                count: current + 1
+            }));
+        }
+
+        function checkLocalDailyLimitUI() {
+            const count = getLocalTodayOrderCount();
+            const banner = document.getElementById("dailyLimitBanner");
+            const submitBtn = document.getElementById("submitOrderBtn");
+
+            if (count >= 2) {
+                banner.classList.remove("hidden");
+                submitBtn.disabled = true;
+                submitBtn.className = "w-full pill-btn bg-neutral-700 text-neutral-400 font-black py-4 px-6 text-base flex items-center justify-center gap-2 cursor-not-allowed";
+            } else if (!storeConfig.isOpen) {
+                submitBtn.disabled = true;
+                submitBtn.className = "w-full pill-btn bg-neutral-700 text-neutral-400 font-black py-4 px-6 text-base flex items-center justify-center gap-2 cursor-not-allowed";
+            } else {
+                banner.classList.add("hidden");
+                submitBtn.disabled = false;
+                submitBtn.className = "w-full pill-btn bg-emerald-500 hover:bg-emerald-600 text-black font-black py-4 px-6 text-base shadow-lg flex items-center justify-center gap-2 transition";
+            }
+        }
+
+        // GPS Automatic Detection
+        document.getElementById("gpsBtn").addEventListener("click", () => {
+            const btnText = document.getElementById("gpsBtnText");
+            const gpsInput = document.getElementById("gpsMapsLink");
+
+            if (!navigator.geolocation) {
+                showToast("متصفحك لا يدعم تحديد الموقع، يرجى كتابة العنوان يدوياً");
+                return;
+            }
+
+            btnText.textContent = "جاري التقاط إحداثيات GPS...";
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude.toFixed(6);
+                    const lng = pos.coords.longitude.toFixed(6);
+                    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+                    gpsInput.value = mapsUrl;
+                    btnText.textContent = "تم التقاط موقعك بنجاح ✓";
+                    showToast("تم تحديد موقعك على خرائط جوجل بنجاح");
+                },
+                () => {
+                    btnText.textContent = "تعذر جلب GPS — يرجى كتابة العنوان بالأسفل";
+                    showToast("يرجى تفعيل الـ GPS أو كتابة العنوان يدوياً");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+
+        // Submit Order: Dual Defense + 1 Write + WhatsApp Redirect
+        document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            if (!storeConfig.isOpen) {
+                showToast("عذراً، المطعم مغلق حالياً");
+                return;
+            }
+
+            if (cart.length === 0) return;
+
+            // Defense 1: LocalStorage Check (0 Reads)
+            if (getLocalTodayOrderCount() >= 2) {
+                checkLocalDailyLimitUI();
+                showToast("لقد وصلت للحد الأقصى (طلبين في اليوم)");
+                return;
+            }
+
+            // Validate Algerian Phone
+            const rawPhone = document.getElementById("customerPhone").value;
+            const validPhone = normalizeAlgerianPhone(rawPhone);
+            const phoneErr = document.getElementById("phoneErrorMsg");
+
+            if (!validPhone) {
+                phoneErr.classList.remove("hidden");
+                return;
+            }
+            phoneErr.classList.add("hidden");
+
+            // Validate Location (GPS or Manual/Zone)
+            const gpsLink = document.getElementById("gpsMapsLink").value.trim();
+            const manualAddr = document.getElementById("manualAddress").value.trim();
+            const zoneSelect = document.getElementById("deliveryZoneSelect");
+            const selectedZoneName = zoneSelect.options[zoneSelect.selectedIndex]?.dataset?.zoneName || "توصيل";
+
+            if (!gpsLink && !manualAddr) {
+                showToast("يرجى تحديد موقعك بالـ GPS أو كتابة عنوانك يدوياً");
+                return;
+            }
+
+            const submitBtn = document.getElementById("submitOrderBtn");
+            const submitBtnText = document.getElementById("submitOrderBtnText");
+            submitBtn.disabled = true;
+            submitBtnText.textContent = "جاري التحقق وتأكيد الطلب...";
+
+            try {
+                const todayStr = getTodayStr();
+                const quotaDocId = `${validPhone}_${todayStr}`;
+                const quotaRef = doc(db, "daily_quotas", quotaDocId);
+
+                // Defense 2: 1 Read in Firestore against Incognito bypass
+                const quotaSnap = await getDoc(quotaRef);
+                let currentPhoneCount = 0;
+                if (quotaSnap.exists()) {
+                    currentPhoneCount = Number(quotaSnap.data().count || 0);
+                }
+
+                if (currentPhoneCount >= 2) {
+                    localStorage.setItem(LOCAL_LIMIT_KEY, JSON.stringify({ date: todayStr, count: 2 }));
+                    checkLocalDailyLimitUI();
+                    showToast("عذراً، هذا الرقم قام بطلبين اليوم بالفعل!");
+                    submitBtnText.textContent = "تأكيد وإرسال عبر واتساب";
+                    return;
+                }
+
+                // Calculate Totals
+                const subtotal = cart.reduce((acc, item) => acc + (Number(item.price) * item.qty), 0);
+                const deliveryFee = Number(zoneSelect.value || 0);
+                const total = subtotal + deliveryFee;
+                const shortOrderNumber = "ORD-" + Math.floor(1000 + Math.random() * 9000);
+                const customerName = document.getElementById("customerName").value.trim() || "زبون كريم";
+
+                const orderPayload = {
+                    orderNumber: shortOrderNumber,
+                    customerName,
+                    phone: validPhone,
+                    zone: selectedZoneName,
+                    manualAddress: manualAddr || "غير محدد نصياً",
+                    gpsLink: gpsLink || "",
+                    items: cart.map(i => ({ id: i.id, name: i.name, price: Number(i.price), qty: i.qty })),
+                    subtotal,
+                    deliveryFee,
+                    total,
+                    status: "بانتظار تأكيد واتساب",
+                    dateStr: todayStr,
+                    createdAt: serverTimestamp()
+                };
+
+                // Write Order to Firestore & Update Phone Daily Counter
+                await addDoc(collection(db, "orders"), orderPayload);
+                await setDoc(quotaRef, {
+                    phone: validPhone,
+                    date: todayStr,
+                    count: currentPhoneCount + 1
+                });
+
+                incrementLocalTodayOrderCount();
+
+                // Prepare Formatted WhatsApp Message
+                const itemsLines = cart.map(i => `• ${i.name} (x${i.qty}) = ${i.price * i.qty} د.ج`).join("\n");
+                const locationLine = gpsLink ? `📍 رابط الخريطة (GPS):\n${gpsLink}` : `📍 العنوان: ${selectedZoneName} - ${manualAddr}`;
+
+                const waMessage = 
+`مرحباً *${storeConfig.storeName}* 👋
+أود تأكيد طلبي الجديد:
+🔖 *رقم الطلب:* ${shortOrderNumber}
+👤 *الاسم:* ${customerName}
+📞 *الهاتف:* ${validPhone}
+
+🍔 *الأطباق المطلوبة:*
+${itemsLines}
+
+🚚 *المنطقة والتوصيل:* ${selectedZoneName} (${deliveryFee} د.ج)
+💰 *المبلغ الإجمالي:* *${total} د.ج*
+
+${locationLine}
+${manualAddr && gpsLink ? `🏠 *تفاصيل العنوان:* ${manualAddr}` : ''}`;
+
+                let cleanRestoWa = String(storeConfig.whatsapp || "213550000000").replace(/\D/g, "");
+                if (cleanRestoWa.startsWith("0")) {
+                    cleanRestoWa = "213" + cleanRestoWa.slice(1);
+                }
+
+                const waUrl = `https://wa.me/${cleanRestoWa}?text=${encodeURIComponent(waMessage)}`;
+
+                // Clear cart & redirect to WhatsApp
+                cart = [];
+                updateCartUI();
+                document.getElementById("checkoutModal").classList.add("hidden");
+                showToast("تم تسجيل طلبك! جاري فتح واتساب...");
+
+                window.open(waUrl, "_blank");
+            } catch (error) {
+                console.error("Order submit error:", error);
+                showToast("حدث خطأ أثناء إرسال الطلب، حاول مجدداً");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtnText.textContent = "تأكيد وإرسال عبر واتساب";
+                checkLocalDailyLimitUI();
+            }
+        });
+
+        // ==========================================
+        // 5. UI INTERACTIONS (MODAL, THEME, TOAST)
+        // ==========================================
+        const modal = document.getElementById("checkoutModal");
+        document.getElementById("openCartBtn").addEventListener("click", () => modal.classList.remove("hidden"));
+        document.getElementById("openCheckoutFromBar").addEventListener("click", () => modal.classList.remove("hidden"));
+        document.getElementById("closeModalBtn").addEventListener("click", () => modal.classList.add("hidden"));
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) modal.classList.add("hidden");
+        });
+
+        // Theme Toggle (Dark Obsidian vs Pure Apple White)
+        document.getElementById("themeToggleBtn").addEventListener("click", () => {
+            document.body.classList.toggle("light-mode");
+        });
+
+        // Manual Cache Refresh Button
+        document.getElementById("forceRefreshBtn").addEventListener("click", () => {
+            loadStoreDocument(true);
+        });
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            document.getElementById("toastText").textContent = msg;
+            t.classList.remove("hidden");
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => t.classList.add("hidden"), 3000);
+        }
+
+        // Initialize Icons & Load Single Document
+        lucide.createIcons();
+        loadStoreDocument(false);
+    </script>
+</body>
+</html>
